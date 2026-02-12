@@ -40,3 +40,15 @@ class CheckResultSerializer(serializers.ModelSerializer):
         model = CheckResult
         fields = ["id", "ts", "status", "latency_ms", "code", "error_text"]
         read_only_fields = fields
+
+## --------------------------------------------------DEMO--------------------------------------------------
+class EchoSerializer(serializers.Serializer):
+    data = serializers.DictField()
+
+    def validate_data(self, value):
+        if not value.get('text'):
+            raise serializers.ValidationError("No data provided")
+
+        if len(value.get('text')) > 20:
+            raise serializers.ValidationError("Text greater than 20 letters, please enter only 20 letters in it. Thanks.")
+        return value

@@ -1,7 +1,11 @@
+from http.client import responses
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+
+from .serializers import EchoSerializer
 
 
 class PingView(APIView):
@@ -30,13 +34,13 @@ class PingPrivateView(APIView):
 class EchoView(APIView):
 
     def post(self, request):
-        if not request.data:
-            return Response({
-                "Error": "No data provided",
-            }, status = status.HTTP_400_BAD_REQUEST)
+        serializer = EchoSerializer(data={"data": request.data})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         return Response({
             "user": request.user.username,
-            "data": request.data
+            "data": serializer.validated_data["data"],
         })
 
 class HelloView(APIView):
