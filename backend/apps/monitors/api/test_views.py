@@ -21,6 +21,7 @@ class PingView(APIView):
             },
         )
 
+
 class PingPrivateView(APIView):
 
     def get(self, request):
@@ -31,17 +32,18 @@ class PingPrivateView(APIView):
                 "user": request.user.username
             },
         )
+
+
 class EchoView(APIView):
 
     def post(self, request):
         serializer = EchoSerializer(data={"data": request.data})
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        serializer.is_valid(raise_exception=True)
         return Response({
             "user": request.user.username,
             "data": serializer.validated_data["data"],
         })
+
 
 class HelloView(APIView):
 

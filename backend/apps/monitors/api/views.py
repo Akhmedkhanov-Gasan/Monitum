@@ -68,4 +68,7 @@ class MonitorViewSet(viewsets.ModelViewSet):
             qs = qs.filter(ts__lte=dt_to)
 
         ser = CheckResultSerializer(qs[:500], many=True)
-        return Response(ser.data)
+        return Response({
+            "result": ser.data,
+            "user": request.user.username,
+        })
