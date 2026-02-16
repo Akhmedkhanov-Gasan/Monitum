@@ -20,9 +20,11 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
-
+    # My #
     "apps.core",
     "apps.monitors",
+    # TEST #
+    "apps.notes.apps.NotesConfig",
 ]
 
 MIDDLEWARE = [

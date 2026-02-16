@@ -7,4 +7,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/token/", obtain_auth_token),
     path("api/", include("apps.monitors.api.urls")),
+    path("api2/", include("apps.notes.api.urls")),
 ]
