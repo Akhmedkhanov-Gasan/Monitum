@@ -1,5 +1,3 @@
-from logging import raiseExceptions
-
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,7 +10,7 @@ from apps.notes.api.serializers import NoteSerializer
 class NoteViews(APIView):
 
     def get(self, request):
-        qs = Note.objects.filter(owner=request.user)
+        qs = Note.objects.filter(owner=request.user).select_related("owner")
         title = request.query_params.get("title")
         if title:
             qs = qs.filter(title__icontains=title)

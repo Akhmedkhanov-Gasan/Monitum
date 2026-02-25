@@ -5,8 +5,8 @@ from apps.notes.models import Note
 class NoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Note
-        fields = ["id", "title", "body", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "title", "body", "created_at", "owner_id"]
+        read_only_fields = ["id", "created_at", "owner_id"]
 
     def validate_title(self, value):
         if len(value) < 3:
