@@ -1,16 +1,30 @@
 # Monitum
 
-Monitum is a backend pet project built with Django and Django REST Framework.
+Monitum is a backend service for uptime monitoring built with Django and Django REST Framework.
 
-The main goal of this project is to deeply understand:
+The goal of the project is to implement a real-world monitoring backend that can:
 
-- Django ORM at the SQL logic level
-- ForeignKey mechanics and ownership
-- REST API lifecycle
-- Authentication and access control
-- Avoiding hidden abstractions and “magic”
+- Track monitored targets (websites / endpoints)
+- Periodically check availability
+- Store check results
+- Expose structured REST API
+- Provide a foundation for alerts and observability features
 
-This project is developed step-by-step with explicit logic and architectural clarity (APIView instead of ViewSet where possible).
+This is a backend-focused pet project evolving toward a production-grade monitoring service.
+
+---
+
+## Core Idea
+
+Monitum is designed as a monitoring backend similar in concept to services like UptimeRobot or Pingdom, but implemented from scratch to explore:
+
+- Django ORM mechanics
+- Clean REST API design
+- Ownership and multi-user isolation
+- Background processing architecture (future-ready)
+- Extensible domain models
+
+The project prioritizes architectural clarity and explicit control over abstractions.
 
 ---
 
@@ -19,76 +33,82 @@ This project is developed step-by-step with explicit logic and architectural cla
 - Python 3.12
 - Django
 - Django REST Framework
-- TokenAuthentication
+- Token Authentication
 - SQLite (development)
+- Modular app structure
+
+Planned:
+
+- PostgreSQL
+- Celery (periodic checks)
+- Redis
+- Docker
+- CI/CD
 
 ---
 
-## Core Features
+## Main Domain Concepts
 
-### 1. Notes CRUD (Manual APIView Implementation)
+### 1. Users
 
-Endpoints:
+Each user owns their monitored resources.
 
-- GET `/api2/notes/`
-- POST `/api2/notes/`
-- GET `/api2/notes/<id>/`
-- PATCH `/api2/notes/<id>/`
-- DELETE `/api2/notes/<id>/`
-
-No routers.  
-No generic shortcuts.  
-Explicit request handling and validation flow.
+Ownership is enforced at the ORM level to ensure data isolation.
 
 ---
 
-### 2. Ownership (User-bound Notes)
+### 2. Monitored Targets
 
-Each note belongs to a specific user.
+Users can register targets (e.g., URLs or endpoints) that need to be checked.
+
+Each target:
+
+- Belongs to a specific user
+- Stores metadata (URL, interval, status, etc.)
+- Acts as a parent entity for monitoring checks
+
+---
+
+### 3. Monitoring Checks
+
+Checks represent individual availability tests.
+
+A check typically stores:
+
+- Timestamp
+- Status (UP / DOWN)
+- Response time
+- Error message (if failed)
+
+This creates a time-series-like structure inside relational storage.
+
+---
+
+### 4. REST API
+
+The backend exposes structured API endpoints for:
+
+- Creating monitoring targets
+- Retrieving user-specific data
+- Accessing historical check results
+- Updating configuration
+- Removing monitored resources
+
+Ownership is enforced via:
 
 ```python
-owner = models.ForeignKey(
-    settings.AUTH_USER_MODEL,
-    on_delete=models.CASCADE,
-    related_name="notes"
-)
+Note.objects.filter(owner=request.user)
 ```
 
-Behavior:
-
-- `owner` is automatically assigned:
-
-```python
-ser.save(owner=request.user)
-```
-
-- Users can only see their own notes
-- Accessing another user's note returns `404`
-- Filtering is enforced at the ORM level
-
-SQL-equivalent logic:
+Equivalent SQL logic:
 
 ```sql
 SELECT *
-FROM notes_note
-WHERE id = <pk>
-AND owner_id = <request.user.id>;
+FROM monitored_target
+WHERE owner_id = <request.user.id>;
 ```
 
----
-
-### 3. ORM Deep Understanding
-
-This project intentionally explores:
-
-- `owner` vs `owner_id`
-- How ForeignKey works internally
-- Reverse relations via `related_name`
-- `user.notes.all()` mechanics
-- N+1 query problem
-- `select_related("owner")`
-
-The goal is to understand what SQL Django generates and why.
+This ensures strict multi-user data isolation.
 
 ---
 
@@ -97,22 +117,29 @@ The goal is to understand what SQL Django generates and why.
 ```
 backend/
 │
-├── uptime/               # Django project
+├── uptime/                # Django project configuration
 │
 └── apps/
-    └── notes/
-        ├── models.py
-        ├── api/
-        │   ├── views.py
-        │   ├── serializers.py
-        │   └── urls.py
+    ├── notes/             # Experimental / learning API module
+    └── ...                # Monitoring-related apps (core logic)
 ```
+
+The `notes` module was used as an isolated learning sandbox to deeply understand:
+
+- CRUD mechanics
+- ForeignKey relationships
+- Reverse relations
+- Query optimization
+- N+1 problem
+- select_related()
+
+It does not represent the core monitoring logic of the project.
 
 ---
 
 ## Authentication
 
-Token-based authentication.
+Token-based authentication is used.
 
 Header example:
 
@@ -120,22 +147,7 @@ Header example:
 Authorization: Token <your_token>
 ```
 
----
-
-## Example Request
-
-Create note:
-
-```json
-POST /api2/notes/
-
-{
-  "title": "Example",
-  "body": "Text"
-}
-```
-
-Owner is assigned automatically from `request.user`.
+All user data is scoped to `request.user`.
 
 ---
 
@@ -144,6 +156,7 @@ Owner is assigned automatically from `request.user`.
 ```bash
 git clone https://github.com/Akhmedkhanov-Gasan/Monitum.git
 cd Monitum
+
 python -m venv venv
 
 # Windows
@@ -160,30 +173,43 @@ python manage.py runserver
 
 ---
 
-## Purpose of This Project
-Monitum is not just a CRUD demo.
+## Architectural Principles
 
-It is a structured backend training environment focused on:
-
-- Understanding how Django translates Python into SQL
-- Manual control over request handling
-- Proper ownership enforcement
-- Clean REST design
-- Building architectural intuition
+- Explicit over implicit
+- ORM-level ownership enforcement
+- No hidden permission magic
+- Clear domain modeling
+- Backend-first thinking
+- Scalable structure for future background workers
 
 ---
 
-## Future Roadmap
+## Roadmap
 
 Planned improvements:
 
-- Pagination
-- Permission abstraction
-- Service layer separation
-- PostgreSQL support
-- Docker setup
-- Celery for background tasks
-- Monitoring features aligned with the Monitum concept
+- Background worker for periodic checks (Celery)
+- Status aggregation logic
+- Alerting system (email / webhook)
+- Rate limiting
+- Pagination and filtering
+- PostgreSQL migration
+- Dockerized setup
+- Production-ready settings split
+- Metrics and observability
+
+---
+
+## Status
+
+Monitum is under active development as a backend-focused pet project.
+
+The current stage focuses on:
+
+- Solid domain modeling
+- Correct data isolation
+- Clean API foundations
+- Performance awareness (query optimization)
 
 ---
 
