@@ -5,14 +5,16 @@ from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework import status
 
 from apps.core.models import Project
 from apps.monitors.models import Monitor, CheckResult
+
 from .serializers import ProjectSerializer, MonitorSerializer, CheckResultSerializer
 
 
 class IsOwner(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj) -> bool:
+    def has_object_permission(self, request, view, obj):
         u = request.user
         if isinstance(obj, Project):
             return obj.owner_id == u.id
@@ -22,7 +24,7 @@ class IsOwner(permissions.BasePermission):
             return obj.monitor.project.owner_id == u.id
         return False
 
-    def has_permission(self, request, view) -> bool:
+    def has_permission(self, request, view):
         return request.user and request.user.is_authenticated
 
 
@@ -35,6 +37,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        obj = serializer.save(owner=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class MonitorViewSet(viewsets.ModelViewSet):
