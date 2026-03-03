@@ -34,6 +34,11 @@ class MonitorSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("interval_s must be 10..3600")
         return v
 
+    def validate_name(self, name):
+        if len(name) < 3:
+            raise serializers.ValidationError("Name too short")
+        return name
+
 
 class CheckResultSerializer(serializers.ModelSerializer):
     class Meta:
