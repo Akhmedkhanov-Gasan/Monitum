@@ -7,7 +7,6 @@ from django.shortcuts import get_object_or_404
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-# from rest_framework import status
 
 from apps.core.models import Project
 from apps.monitors.models import Monitor, CheckResult
@@ -40,23 +39,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
-    # def create(self, request, *args, **kwargs):
-    #     serializer = self.get_serializer(data=request.data)
-    #     serializer.is_valid(raise_exception=True)
-    #     obj = serializer.save(owner=request.user)
-    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #
-    # def update(self, request, *args, **kwargs):
-    #     obj = self.get_object()
-    #     serializer = self.get_serializer(
-    #         obj,
-    #         data=request.data,
-    #         partial=True
-    #     )
-    #     serializer.is_valid(raise_exception=True)
-    #     print("VALIDATED:", serializer.validated_data)
-    #     serializer.save()
-    #     return Response(serializer.data)
 
 
 class MonitorViewSet(viewsets.ModelViewSet):
