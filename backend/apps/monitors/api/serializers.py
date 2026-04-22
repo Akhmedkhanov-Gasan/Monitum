@@ -39,6 +39,15 @@ class MonitorSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Name too short")
         return name
 
+    def validate_method(self, value):
+        value = value.upper()
+        allowed = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+        if value not in allowed:
+            raise serializers.ValidationError(
+                f"method must be one of: {', '.join(sorted(allowed))}"
+            )
+        return value
+
 
 class CheckResultSerializer(serializers.ModelSerializer):
     class Meta:
