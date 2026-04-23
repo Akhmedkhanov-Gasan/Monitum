@@ -86,3 +86,36 @@ class MonitorCheckApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(CheckResult.objects.count(), 0)
+
+    def test_status_action_returns_latest_result(self):
+        older_result = CheckResult.objects.create(
+            monitor=self.monitor,
+            status="DOWN",
+            latency_ms=220,
+            code=503,
+            error_text="expected 200, got 503",
+        )
+        newer_result = CheckResult.objects.create(
+            monitor=self.monitor,
+            status="UP",
+            latency_ms=120,
+            code=200,
+            error_text=None,
+        )
+
+        response = self.client.get(f"/api/monitors/{self.monitor.pk}/status/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["monitor_id"], self.monitor.pk)
+        self.assertEqual(response.data["monitor_name"], self.monitor.name)
+        self.assertTrue(response.data["is_active"])
+        self.assertEqual(response.data["latest_result"]["id"], newer_result.pk)
+        self.assertNotEqual(response.data["latest_result"]["id"], older_result.pk)
+        self.assertEqual(response.data["latest_result"]["status"], "UP")
+
+    def test_status_action_returns_null_when_no_results(self):
+        response = self.client.get(f"/api/monitors/{self.monitor.pk}/status/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["monitor_id"], self.monitor.pk)
+        self.assertIsNone(response.data["latest_result"])

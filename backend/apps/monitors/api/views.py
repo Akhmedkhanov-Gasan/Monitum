@@ -94,3 +94,21 @@ class MonitorViewSet(viewsets.ModelViewSet):
         result = check_monitor(monitor)
         ser = CheckResultSerializer(result)
         return Response(ser.data, status=201)
+
+    @action(detail=True, methods=["get"])
+    def status(self, request, pk=None):
+        monitor = self.get_object()
+        latest_result = monitor.results.order_by("-ts").first()
+
+        return Response(
+            {
+                "monitor_id": monitor.id,
+                "monitor_name": monitor.name,
+                "is_active": monitor.is_active,
+                "latest_result": (
+                    CheckResultSerializer(latest_result).data
+                    if latest_result
+                    else None
+                ),
+            }
+        )
