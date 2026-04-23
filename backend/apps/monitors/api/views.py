@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from apps.core.models import Project
 from apps.monitors.models import Monitor, CheckResult
+from apps.monitors.services import check_monitor
 
 from .serializers import ProjectSerializer, MonitorSerializer, CheckResultSerializer
 
@@ -79,3 +80,17 @@ class MonitorViewSet(viewsets.ModelViewSet):
             "result": ser.data,
             "user": request.user.username,
         })
+
+    @action(detail=True, methods=["post"])
+    def check(self, request, pk=None):
+        monitor = self.get_object()
+
+        if not monitor.is_active:
+            return Response(
+                {"detail": "inactive monitors cannot be checked"},
+                status=400,
+            )
+
+        result = check_monitor(monitor)
+        ser = CheckResultSerializer(result)
+        return Response(ser.data, status=201)
