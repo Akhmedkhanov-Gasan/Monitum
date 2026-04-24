@@ -119,3 +119,55 @@ class MonitorCheckApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["monitor_id"], self.monitor.pk)
         self.assertIsNone(response.data["latest_result"])
+
+    @patch("apps.monitors.api.views.check_monitor")
+    def test_project_check_action_checks_active_monitors(self, mock_check_monitor):
+        inactive_monitor = Monitor.objects.create(
+            project=self.project,
+            name="Inactive API",
+            url="https://example.com/inactive",
+            method="GET",
+            expected_code=200,
+            timeout_s=5,
+            interval_s=60,
+            is_active=False,
+        )
+
+        def create_result(monitor):
+            return CheckResult.objects.create(
+                monitor=monitor,
+                status="UP",
+                latency_ms=100,
+                code=200,
+                error_text=None,
+            )
+
+        mock_check_monitor.side_effect = create_result
+
+        response = self.client.post(f"/api/projects/{self.project.pk}/check/")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["project_id"], self.project.pk)
+        self.assertEqual(response.data["checked"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["status"], "UP")
+        mock_check_monitor.assert_called_once_with(self.monitor)
+        self.assertFalse(
+            CheckResult.objects.filter(monitor=inactive_monitor).exists()
+        )
+
+    @patch("apps.monitors.api.views.check_monitor")
+    def test_project_check_action_returns_empty_results_without_active_monitors(
+        self,
+        mock_check_monitor,
+    ):
+        self.monitor.is_active = False
+        self.monitor.save(update_fields=["is_active"])
+
+        response = self.client.post(f"/api/projects/{self.project.pk}/check/")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["project_id"], self.project.pk)
+        self.assertEqual(response.data["checked"], 0)
+        self.assertEqual(response.data["results"], [])
+        mock_check_monitor.assert_not_called()

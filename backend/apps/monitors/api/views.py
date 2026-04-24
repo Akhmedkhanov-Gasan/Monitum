@@ -4,7 +4,7 @@ from typing import Optional
 from django.utils.dateparse import parse_datetime
 from django.shortcuts import get_object_or_404
 
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -39,6 +39,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def check(self, request, pk=None):
+        project = self.get_object()
+        results = [
+            check_monitor(monitor)
+            for monitor in project.monitors.filter(is_active=True)
+        ]
+        ser = CheckResultSerializer(results, many=True)
+
+        return Response(
+            {
+                "project_id": project.id,
+                "checked": len(results),
+                "results": ser.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 
