@@ -171,3 +171,99 @@ class MonitorCheckApiTests(TestCase):
         self.assertEqual(response.data["checked"], 0)
         self.assertEqual(response.data["results"], [])
         mock_check_monitor.assert_not_called()
+
+    def test_project_status_action_returns_summary(self):
+        down_monitor = Monitor.objects.create(
+            project=self.project,
+            name="API",
+            url="https://example.com/api",
+            method="GET",
+            expected_code=200,
+            timeout_s=5,
+            interval_s=60,
+            is_active=True,
+        )
+        unknown_monitor = Monitor.objects.create(
+            project=self.project,
+            name="Docs",
+            url="https://example.com/docs",
+            method="GET",
+            expected_code=200,
+            timeout_s=5,
+            interval_s=60,
+            is_active=True,
+        )
+        inactive_monitor = Monitor.objects.create(
+            project=self.project,
+            name="Old service",
+            url="https://example.com/old",
+            method="GET",
+            expected_code=200,
+            timeout_s=5,
+            interval_s=60,
+            is_active=False,
+        )
+        CheckResult.objects.create(
+            monitor=self.monitor,
+            status="UP",
+            latency_ms=100,
+            code=200,
+            error_text=None,
+        )
+        CheckResult.objects.create(
+            monitor=down_monitor,
+            status="DOWN",
+            latency_ms=300,
+            code=503,
+            error_text="expected 200, got 503",
+        )
+        CheckResult.objects.create(
+            monitor=inactive_monitor,
+            status="DOWN",
+            latency_ms=400,
+            code=500,
+            error_text="expected 200, got 500",
+        )
+
+        response = self.client.get(f"/api/projects/{self.project.pk}/status/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["project_id"], self.project.pk)
+        self.assertEqual(response.data["project_name"], self.project.name)
+        self.assertEqual(response.data["total_monitors"], 4)
+        self.assertEqual(response.data["active_monitors"], 3)
+        self.assertEqual(response.data["up"], 1)
+        self.assertEqual(response.data["down"], 1)
+        self.assertEqual(response.data["unknown"], 1)
+        self.assertEqual(len(response.data["monitors"]), 4)
+
+        monitors_by_name = {
+            monitor["name"]: monitor
+            for monitor in response.data["monitors"]
+        }
+        self.assertEqual(
+            monitors_by_name[self.monitor.name]["latest_result"]["status"],
+            "UP",
+        )
+        self.assertEqual(
+            monitors_by_name[down_monitor.name]["latest_result"]["status"],
+            "DOWN",
+        )
+        self.assertIsNone(
+            monitors_by_name[unknown_monitor.name]["latest_result"]
+        )
+        self.assertFalse(monitors_by_name[inactive_monitor.name]["is_active"])
+
+    def test_project_status_action_returns_empty_summary_without_monitors(self):
+        empty_project = Project.objects.create(name="Empty", owner=self.user)
+
+        response = self.client.get(f"/api/projects/{empty_project.pk}/status/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["project_id"], empty_project.pk)
+        self.assertEqual(response.data["total_monitors"], 0)
+        self.assertEqual(response.data["active_monitors"], 0)
+        self.assertEqual(response.data["up"], 0)
+        self.assertEqual(response.data["down"], 0)
+        self.assertEqual(response.data["unknown"], 0)
+        self.assertEqual(response.data["monitors"], [])
