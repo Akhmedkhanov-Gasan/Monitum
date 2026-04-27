@@ -120,6 +120,43 @@ class MonitorCheckApiTests(TestCase):
         self.assertEqual(response.data["monitor_id"], self.monitor.pk)
         self.assertIsNone(response.data["latest_result"])
 
+    def test_monitor_list_includes_latest_status_fields(self):
+        CheckResult.objects.create(
+            monitor=self.monitor,
+            status="DOWN",
+            latency_ms=220,
+            code=503,
+            error_text="expected 200, got 503",
+        )
+        newer_result = CheckResult.objects.create(
+            monitor=self.monitor,
+            status="UP",
+            latency_ms=120,
+            code=200,
+            error_text=None,
+        )
+
+        response = self.client.get("/api/monitors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        monitor_data = response.data[0]
+        self.assertEqual(monitor_data["id"], self.monitor.pk)
+        self.assertEqual(monitor_data["current_status"], "UP")
+        self.assertEqual(
+            monitor_data["last_checked_at"],
+            newer_result.ts.isoformat().replace("+00:00", "Z"),
+        )
+
+    def test_monitor_list_returns_null_status_fields_without_results(self):
+        response = self.client.get("/api/monitors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        monitor_data = response.data[0]
+        self.assertIsNone(monitor_data["current_status"])
+        self.assertIsNone(monitor_data["last_checked_at"])
+
     @patch("apps.monitors.api.views.check_monitor")
     def test_project_check_action_checks_active_monitors(self, mock_check_monitor):
         inactive_monitor = Monitor.objects.create(

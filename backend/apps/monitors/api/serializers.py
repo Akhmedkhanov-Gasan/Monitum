@@ -10,6 +10,9 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 
 class MonitorSerializer(serializers.ModelSerializer):
+    current_status = serializers.SerializerMethodField()
+    last_checked_at = serializers.SerializerMethodField()
+
     class Meta:
         model = Monitor
         fields = [
@@ -22,7 +25,25 @@ class MonitorSerializer(serializers.ModelSerializer):
             "timeout_s",
             "interval_s",
             "is_active",
+            "current_status",
+            "last_checked_at",
         ]
+        read_only_fields = ["current_status", "last_checked_at"]
+
+    def get_latest_result(self, obj):
+        if not hasattr(obj, "_latest_result"):
+            obj._latest_result = obj.results.order_by("-ts", "-id").first()
+        return obj._latest_result
+
+    def get_current_status(self, obj):
+        latest_result = self.get_latest_result(obj)
+        return latest_result.status if latest_result else None
+
+    def get_last_checked_at(self, obj):
+        latest_result = self.get_latest_result(obj)
+        if not latest_result:
+            return None
+        return serializers.DateTimeField().to_representation(latest_result.ts)
 
     def validate_timeout_s(self, v):
         if not (1 <= v <= 60):
