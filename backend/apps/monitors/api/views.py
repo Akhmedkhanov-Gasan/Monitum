@@ -58,6 +58,51 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=True, methods=["get"])
+    def status(self, request, pk=None):
+        project = self.get_object()
+        monitors = list(project.monitors.order_by("name"))
+        active_monitors = [monitor for monitor in monitors if monitor.is_active]
+        counts = {"up": 0, "down": 0, "unknown": 0}
+        monitor_statuses = []
+
+        for monitor in monitors:
+            latest_result = monitor.results.order_by("-ts", "-id").first()
+
+            if monitor.is_active:
+                if latest_result and latest_result.status == "UP":
+                    counts["up"] += 1
+                elif latest_result and latest_result.status == "DOWN":
+                    counts["down"] += 1
+                else:
+                    counts["unknown"] += 1
+
+            monitor_statuses.append(
+                {
+                    "id": monitor.id,
+                    "name": monitor.name,
+                    "is_active": monitor.is_active,
+                    "latest_result": (
+                        CheckResultSerializer(latest_result).data
+                        if latest_result
+                        else None
+                    ),
+                }
+            )
+
+        return Response(
+            {
+                "project_id": project.id,
+                "project_name": project.name,
+                "total_monitors": len(monitors),
+                "active_monitors": len(active_monitors),
+                "up": counts["up"],
+                "down": counts["down"],
+                "unknown": counts["unknown"],
+                "monitors": monitor_statuses,
+            }
+        )
+
 
 
 class MonitorViewSet(viewsets.ModelViewSet):
@@ -116,7 +161,7 @@ class MonitorViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def status(self, request, pk=None):
         monitor = self.get_object()
-        latest_result = monitor.results.order_by("-ts").first()
+        latest_result = monitor.results.order_by("-ts", "-id").first()
 
         return Response(
             {
