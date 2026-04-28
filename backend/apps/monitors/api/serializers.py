@@ -27,6 +27,7 @@ class MonitorSerializer(serializers.ModelSerializer):
             "is_active",
             "current_status",
             "last_checked_at",
+            "description",
         ]
         read_only_fields = ["current_status", "last_checked_at"]
 

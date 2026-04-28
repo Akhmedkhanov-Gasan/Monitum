@@ -175,3 +175,19 @@ class MonitorViewSet(viewsets.ModelViewSet):
                 ),
             }
         )
+
+    @action(detail=True, methods=["post"])
+    def pause(self, request, pk=None):
+        monitor = self.get_object()
+        monitor.is_active = False
+        monitor.save()
+        ser = MonitorSerializer(monitor)
+        return Response(ser.data)
+
+    @action(detail=True, methods=["post"])
+    def resume(self, request, pk=None):
+        monitor = self.get_object()
+        monitor.is_active = True
+        monitor.save()
+        ser = MonitorSerializer(monitor)
+        return Response(ser.data)
