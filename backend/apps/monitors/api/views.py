@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from django.utils.dateparse import parse_datetime
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 
 from rest_framework import permissions, status, viewsets
@@ -110,7 +111,22 @@ class MonitorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsOwner]
 
     def get_queryset(self):
-        return Monitor.objects.filter(project__owner=self.request.user)
+        current = Monitor.objects.filter(project__owner=self.request.user)
+        current_status = self.request.query_params.get("is_active")
+
+        if current_status is None:
+            return current
+        current_status = current_status.lower()
+
+        if current_status not in ('true', 'false'):
+            raise ValidationError({
+                "is_active": "must be true or false"
+            })
+        if current_status == "true":
+            return current.filter(is_active=True)
+        elif current_status == "false" :
+            return current.filter(is_active=False)
+        return current
 
     def perform_create(self, serializer):
         project = serializer.validated_data["project"]
