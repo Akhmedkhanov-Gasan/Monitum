@@ -13,6 +13,7 @@ class Monitor(models.Model):
     timeout_s = models.PositiveSmallIntegerField(default=10)
     interval_s = models.PositiveSmallIntegerField(default=60)
     is_active = models.BooleanField(default=True)
+    description = models.CharField(max_length=300, blank=True, default="")
 
     class Meta:
         unique_together = ("project", "name")
