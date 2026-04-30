@@ -304,3 +304,81 @@ class MonitorCheckApiTests(TestCase):
         self.assertEqual(response.data["down"], 0)
         self.assertEqual(response.data["unknown"], 0)
         self.assertEqual(response.data["monitors"], [])
+
+    def test_pause_action_deactivates_monitor(self):
+        response = self.client.post(f"/api/monitors/{self.monitor.pk}/pause/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["is_active"])
+        self.monitor.refresh_from_db()
+        self.assertFalse(self.monitor.is_active)
+
+    def test_resume_action_activates_monitor(self):
+        self.monitor.is_active = False
+        self.monitor.save()
+
+        response = self.client.post(f"/api/monitors/{self.monitor.pk}/resume/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["is_active"])
+        self.monitor.refresh_from_db()
+        self.assertTrue(self.monitor.is_active)
+
+    def test_is_active_false(self):
+        inactive_monitor = Monitor.objects.create(
+            project=self.project,
+            name="API",
+            url="https://example.com/api",
+            method="GET",
+            expected_code=200,
+            timeout_s=5,
+            interval_s=60,
+            is_active=False,
+        )
+        response = self.client.get(f"/api/monitors/?is_active=false")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], inactive_monitor.pk)
+        self.assertFalse(response.data[0]["is_active"])
+
+    def test_is_active_true(self):
+        inactive_monitor = Monitor.objects.create(
+            project=self.project,
+            name="API",
+            url="https://example.com/api",
+            method="GET",
+            expected_code=200,
+            timeout_s=5,
+            interval_s=60,
+            is_active=False,
+        )
+        response = self.client.get(f"/api/monitors/?is_active=true")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.monitor.pk)
+        self.assertTrue(response.data[0]["is_active"])
+
+    def test_is_active_filter_rejects_invalid_value(self):
+        response = self.client.get(f"/api/monitors/?is_active=abc")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("is_active", response.data)
+
+    def test_pause_action_cannot_deactivate_other_users_monitor(self):
+        second_user = get_user_model().objects.create_user(
+            username="test",
+            password="secret321",
+        )
+        second_project = Project.objects.create(name="Test1", owner=second_user)
+        test_monitor = Monitor.objects.create(
+            project=second_project,
+            name="API",
+            url="https://example.com/api",
+            method="GET",
+            expected_code=200,
+            timeout_s=5,
+            interval_s=60,
+            is_active=True,
+        )
+        response = self.client.post(f"/api/monitors/{test_monitor.pk}/pause/")
+        self.assertEqual(response.status_code, 404)
+        test_monitor.refresh_from_db()
+        self.assertTrue(test_monitor.is_active)
