@@ -70,6 +70,15 @@ class MonitorSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_project(self, project):
+        request = self.context["request"]
+        user = request.user
+        if project.owner_id != user.id:
+            raise serializers.ValidationError(
+                f"Project does not belong to current user"
+            )
+        return project
+
 
 class CheckResultSerializer(serializers.ModelSerializer):
     class Meta:
